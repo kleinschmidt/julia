@@ -2518,7 +2518,7 @@ static bool emit_builtin_call(jl_codectx_t &ctx, jl_cgval_t *ret, jl_value_t *f,
                 else if (!isboxed && jl_is_uniontype(ety)) {
                     Type *AT = ArrayType::get(IntegerType::get(jl_LLVMContext, 8 * al), (elsz + al - 1) / al);
                     Value *data = emit_bitcast(ctx, emit_arrayptr(ctx, ary, ary_ex), AT->getPointerTo());
-                    // isbits union selector bytes are stored directly after the last array element
+                    // isbits union selector bytes are stored after a->maxsize
                     Value *selidx = emit_arraylen_prim(ctx, ary);
                     Value *ptindex = ctx.builder.CreateInBoundsGEP(AT, data, selidx);
                     ptindex = emit_bitcast(ctx, ptindex, T_pint8);

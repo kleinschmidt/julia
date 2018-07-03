@@ -157,10 +157,9 @@ static bool is_safe_char(unsigned char c)
            (c >= 128 && c < 255);
 }
 
-static char hexchar(unsigned char c)
-{
-    return (c <= 9 ? '0' : 'A' - 10) + c;
-}
+static const char hexchars[16] = {
+    '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
 static const char *const common_names[255] = {
 //  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, a, b, c, d, e, f
@@ -200,8 +199,8 @@ static void makeSafeName(GlobalObject &G)
                     SafeName.push_back(common_names[c][2]);
             }
             else {
-                SafeName.push_back(hexchar((c >> 4) & 0xF));
-                SafeName.push_back(hexchar(c & 0xF));
+                SafeName.push_back(hexchars[(c >> 4) & 0xF]);
+                SafeName.push_back(hexchars[c & 0xF]);
             }
         }
     }
@@ -223,6 +222,7 @@ void *jl_create_native(jl_array_t *methods)
     JL_GC_PUSH1(&src);
     JL_LOCK(&codegen_lock);
 
+    // compile all methods for the current world, and maybe also then the type-inference world
     for (int worlds = 2; worlds > 0; worlds--) {
         params.world = (worlds == 1 ? jl_world_counter : jl_typeinf_world);
         if (!params.world)
@@ -230,7 +230,11 @@ void *jl_create_native(jl_array_t *methods)
         size_t i, l;
         for (i = 0, l = jl_array_len(methods); i < l; i++) {
             mi = (jl_method_instance_t*)jl_array_ptr_ref(methods, i);
+            // if this method is applicable to the current compilation,
+            // and this is either the primary world, or not applicable in the primary world
+            // then we want to compile and emit this
             if ((worlds == 1 || mi->max_world < jl_world_counter) && mi->min_world <= params.world && params.world <= mi->max_world) {
+                // find and prepare the source code to compile
                 src = (jl_code_info_t*)mi->inferred;
                 if (src && (jl_value_t*)src != jl_nothing)
                     src = jl_uncompress_ast(mi->def.method, (jl_array_t*)src);
@@ -238,12 +242,14 @@ void *jl_create_native(jl_array_t *methods)
                     src = jl_type_infer(&mi, params.world, 0);
                 }
                 if (!emitted.count(mi)) {
+                    // now add it to our compilation results
                     jl_compile_result_t result = jl_compile_linfo1(mi, src, params);
                     if (std::get<0>(result))
                         emitted[mi] = std::move(result);
                 }
             }
         }
+        // finally, make sure all referenced methods also get compiled or fixed up
         jl_compile_workqueue(emitted, params);
     }
     JL_GC_POP();
@@ -256,6 +262,7 @@ void *jl_create_native(jl_array_t *methods)
     }
 
     // clones the contents of the module `m` to the shadow_output collector
+    // while examining and recording what kind of function pointer we have
     ValueToValueMapTy VMap;
     std::unique_ptr<Module> clone(CloneModule(shadow_output, VMap));
     for (auto &def : emitted) {
@@ -294,6 +301,8 @@ void *jl_create_native(jl_array_t *methods)
     }
 
 #if defined(_OS_WINDOWS_) && defined(_CPU_X86_64_)
+    // setting the function personality enables stack unwinding and catching exceptions
+    // so make sure everything has something set
     Type *T_int32 = Type::getInt32Ty(clone->getContext());
     Function *juliapersonality_func =
        Function::Create(FunctionType::get(T_int32, true),
@@ -524,7 +533,7 @@ void jl_dump_native(void *native_code,
 }
 
 // clones the contents of the module `m` to the shadow_output collector
-// TODO: this is deprecated
+// TODO: this should be deprecated
 void jl_add_to_shadow(Module *m)
 {
     ValueToValueMapTy VMap;

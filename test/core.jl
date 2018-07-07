@@ -6285,3 +6285,4 @@ struct FooFieldType; x::Int; end
 f_fieldtype(b) = fieldtype(b ? Int : FooFieldType, 1)
 
 @test @inferred(f_fieldtype(false)) == Int
+@test_throws BoundsError f_fieldtype(true)

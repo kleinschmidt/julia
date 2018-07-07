@@ -6279,3 +6279,9 @@ f27910() = ((),)[2]
 f9765(::Bool) = 1
 g9765() = f9765(isa(1, 1))
 @test_throws TypeError g9765()
+
+# Check that the tfunc for fieldtype is correct
+struct FooFieldType; x::Int; end
+f_fieldtype(b) = fieldtype(b ? Int : FooFieldType, 1)
+
+@test @inferred(f_fieldtype(false)) == Int

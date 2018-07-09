@@ -907,19 +907,32 @@ STATIC_INLINE void jl_array_shrink(jl_array_t *a, size_t dec)
     //if we don't manage this array return
     if (a->flags.how == 0) return;
 
+    size_t elsz = a->elsize;
     int newbytes = (a->maxsize - dec) * a->elsize;
     int oldnbytes = (a->maxsize) * a->elsize;
+    int isbitsunion = jl_array_isbitsunion(a);
+    if (isbitsunion) {
+        newbytes += a->maxsize - dec;
+        oldnbytes += a->maxsize;
+    }
 
-    char *originalptr = ((char*) a->data) - a->offset;
+    char *originalptr = ((char*) a->data) - a->offset * a->elsize;
     if (a->flags.how == 1) {
         //this is a julia-allocated buffer that needs to be marked
     }
     else if (a->flags.how == 2) {
-        //FIXME: what to do about isbits Union arrays w/ their type tag bytes?
         //malloc-allocated pointer this array object manages
+        char *typetagdata;
+        char *newtypetagdata;
+        if (isbitsunion) typetagdata = jl_array_typetagdata(a);
+        size_t oldoffsnb = a->offset * elsz;
         a->data = jl_gc_managed_realloc(originalptr, newbytes, oldnbytes,
-                                        a->flags.isaligned, (jl_value_t*) a);
+                                        a->flags.isaligned, (jl_value_t*) a) + oldoffsnb;
         a->maxsize -= dec;
+        if (isbitsunion) {
+            newtypetagdata = jl_array_typetagdata(a);
+            memmove(newtypetagdata, typetagdata, a->nrows);
+        }
     }
     else if (a->flags.how == 3) {
         //this has has a pointer to the object that owns the data

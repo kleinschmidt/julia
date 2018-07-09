@@ -6297,6 +6297,27 @@ let A=Vector{Union{Int, Missing}}(undef, 0)
     @test !any(ismissing, A)
 end
 
+# jl_array_shrink
+let A=Vector{Union{UInt8, Missing}}(undef, 1048577)
+    Base.arrayset(true, A, 0x01, 1)
+    Base.arrayset(true, A, missing, 2)
+    Base.arrayset(true, A, 0x03, 3)
+    Base.arrayset(true, A, missing, 4)
+    Base.arrayset(true, A, 0x05, 5)
+    deleteat!(A, 6:1048577)
+    @test Base.arrayref(true, A, 1) === 0x01
+    @test Base.arrayref(true, A, 2) === missing
+    @test Base.arrayref(true, A, 3) === 0x03
+    @test Base.arrayref(true, A, 4) === missing
+    @test Base.arrayref(true, A, 5) === 0x05
+    sizehint!(A, 5)
+    @test Base.arrayref(true, A, 1) === 0x01
+    @test Base.arrayref(true, A, 2) === missing
+    @test Base.arrayref(true, A, 3) === 0x03
+    @test Base.arrayref(true, A, 4) === missing
+    @test Base.arrayref(true, A, 5) === 0x05
+end
+
 end # module UnionOptimizations
 
 # issue #6614, argument destructuring

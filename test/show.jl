@@ -1301,3 +1301,19 @@ h_line() = f_line()
 @test let x = nothing; "x = $(repr(x))" end == "x = nothing"
 @test_deprecated `/bin/foo $nothing`
 @test_deprecated `$nothing`
+
+
+struct X28004
+    value::Any
+end
+
+function Base.show(io::IO, x::X28004)
+    print(io, "X(")
+    show(io, x.value)
+    print(io, ")")
+end
+
+@testset """printing "Any" is not skipped with nested arrays""" begin
+    @test replstr(Union{X28004,Vector}[X28004(Any[X28004(1)])]) ==
+        "1-element Array{Union{X28004, Array{T,1} where T},1}:\n X(Any[X(1)])"
+end

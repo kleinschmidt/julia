@@ -1735,3 +1735,12 @@ Base.iterate(::Iterator27434, ::Any) = nothing
 f27078(T::Type{S}) where {S} = isa(T, UnionAll) ? f27078(T.body) : T
 T27078 = Vector{Vector{T}} where T
 @test f27078(T27078) === T27078.body
+
+# issue #28079
+struct Foo28079 end
+@inline h28079(x, args...) = g28079(x, args...)
+@inline g28079(::Any, f, args...) = f(args...)
+test28079(p, n, m) = h28079(Foo28079(), Base.pointerref, p, n, m)
+cinfo_unoptimized = code_typed(test28079, (Ptr{Float32}, Int, Int); optimize=false)[].first
+cinfo_optimized = code_typed(test28079, (Ptr{Float32}, Int, Int); optimize=true)[].first
+@test cinfo_unoptimized.ssavaluetypes[end-1] === cinfo_optimized.ssavaluetypes[end-1] === Float32

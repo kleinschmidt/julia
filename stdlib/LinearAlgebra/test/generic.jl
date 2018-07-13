@@ -369,4 +369,9 @@ end
     end
 end
 
+@testset "missing values" begin
+    @test ismissing(norm(missing))
+    @test ismissing([1.0, 2.0, missing] ≈ [1.0, 2.0, 3.0])
+end
+
 end # module TestGeneric

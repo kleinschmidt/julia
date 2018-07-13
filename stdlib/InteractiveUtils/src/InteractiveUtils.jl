@@ -6,7 +6,7 @@ module InteractiveUtils
 
 export apropos, edit, less, code_warntype, code_llvm, code_native, methodswith, varinfo,
     versioninfo, subtypes, peakflops, @which, @edit, @less, @functionloc, @code_warntype,
-    @code_typed, @code_lowered, @code_llvm, @code_native, Pkg, clipboard
+    @code_typed, @code_lowered, @code_llvm, @code_native, clipboard
 
 import Base.Docs.apropos
 
@@ -15,7 +15,6 @@ using Base: unwrap_unionall, rewrap_unionall, isdeprecated, Bottom, show_unquote
 
 using Markdown
 using LinearAlgebra  # for peakflops
-import Pkg, OldPkg
 
 include("editless.jl")
 include("codeview.jl")
@@ -116,6 +115,7 @@ function versioninfo(io::IO=stdout; verbose::Bool=false, packages::Bool=false)
         end
     end
     if packages || verbose
+        OldPkg = Base.require(Base, :OldPkg)
         println(io, "Packages:")
         println(io, "  Package Directory: ", OldPkg.dir())
         print(io, "  Package Status:")

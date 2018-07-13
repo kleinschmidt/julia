@@ -18,7 +18,7 @@ const HEADER = """
 #    `precompile.jl`
 """
 
-function fixup_precompile(new_precompile_file; merge=false)
+function fixup_precompile(new_precompile_file; merge=false, keep_anonymous=true)
     old_precompile_file = joinpath(Sys.BINDIR, "..", "..", "base", "precompile.jl")
     precompile_statements = Set{String}()
 
@@ -26,7 +26,14 @@ function fixup_precompile(new_precompile_file; merge=false)
         for line in eachline(file)
             line = strip(line)
             # filter out closures, which might have different generated names in different environments
-            occursin(r"#[0-9]", line) && continue
+            if !keep_anonymous && occursin(r"#[0-9]", line)
+                continue
+            end
+
+            # WAOW!
+            line = replace(line, "FakeTerminals.FakeTerminal" => "REPL.Terminals.TTYTerminal")
+
+            (occursin(r"Main.", line) || occursin(r"FakeTerminals", line)) && continue
             # Other stuff than precompile statements might have been written to STDERR
             startswith(line, "precompile(Tuple{") || continue
             # Ok, add the line
@@ -60,11 +67,20 @@ function fixup_precompile(new_precompile_file; merge=false)
     end
 end
 
-if length(ARGS) == 1
-    fixup_precompile(joinpath(pwd(), ARGS[1]))
-elseif length(ARGS) == 2
-    @assert ARGS[1] == "--merge"
-    fixup_precompile(joinpath(pwd(), ARGS[2]); merge = true)
-else
-    error("invalid arguments")
+function run()
+    merge = false
+    keep_anonymous = false
+    for arg in ARGS[1:end-1]
+        if arg == "--merge"
+            merge = true
+        elseif arg == "--keep-anonymous"
+            keep_anonymous = true
+        else
+            error("unknown argument $arg")
+        end
+    end
+
+    fixup_precompile(joinpath(pwd(), ARGS[end]); merge=merge, keep_anonymous=keep_anonymous)
 end
+
+run()

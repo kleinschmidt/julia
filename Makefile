@@ -81,6 +81,15 @@ julia-sysimg-debug : julia-sysimg julia-ui-debug
 	@$(MAKE) $(QUIET_MAKE) -C $(BUILDROOT) $(build_private_libdir)/sys-debug.$(SHLIB_EXT)
 
 julia-debug julia-release : julia-% : julia-ui-% julia-sysimg-% julia-symlink julia-libccalltest julia-base-cache
+	@$(MAKE) julia-precompile-$*
+
+PRECOMPILE_FILE := $(BUILDROOT)/__precompiles__.txt
+julia-precompile-release julia-precompile-debug : julia-precompile-% :
+	@$(JULIA_EXECUTABLE) --trace-compile=yes $(JULIAHOME)/contrib/precompile_replay.jl 2> $(PRECOMPILE_FILE)
+	@$(JULIA_EXECUTABLE) $(JULIAHOME)/contrib/fixup_precompile.jl --merge --keep-anonymous $(PRECOMPILE_FILE)
+	@$(RM) $(PRECOMPILE_FILE)
+	@$(MAKE) julia-sysimg-$*
+
 
 debug release : % : julia-%
 
@@ -570,7 +579,8 @@ distcleanall: cleanall
 	test testall testall1 test clean distcleanall cleanall clean-* \
 	run-julia run-julia-debug run-julia-release run \
 	install binary-dist light-source-dist.tmp light-source-dist \
-	dist full-source-dist source-dist
+	dist full-source-dist source-dist \
+	julia-precompile-release julia-precompile-debug
 
 test: check-whitespace $(JULIA_BUILD_MODE)
 	@$(MAKE) $(QUIET_MAKE) -C $(BUILDROOT)/test default JULIA_BUILD_MODE=$(JULIA_BUILD_MODE)

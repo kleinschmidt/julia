@@ -669,7 +669,7 @@ function process_phinode_values(old_values::Vector{Any}, late_fixup::Vector{Int}
         val = old_values[i]
         if isa(val, SSAValue)
             if do_rename_ssa
-                if val.id > processed_idx
+                if val.id >= processed_idx
                     push!(late_fixup, result_idx)
                     val = OldSSAValue(val.id)
                 else
@@ -679,7 +679,7 @@ function process_phinode_values(old_values::Vector{Any}, late_fixup::Vector{Int}
                 used_ssas[val.id] += 1
             end
         elseif isa(val, OldSSAValue)
-            if val.id > processed_idx
+            if val.id >= processed_idx
                 push!(late_fixup, result_idx)
             else
                 # Always renumber these. do_rename_ssa applies only to actual SSAValues
